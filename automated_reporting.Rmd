@@ -1,0 +1,154 @@
+---
+title: "BAB 5: G11 - G12"
+author: "Diva Kartika"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Prerequisites
+
+```{r setup}
+library(ggplot2)
+library(ggrepel)
+library(ggnewscale)
+library(readxl)
+library(dplyr)
+library(lubridate)
+library(RColorBrewer)
+```
+
+```{r}
+my_comma <- scales::label_comma(big.mark = ".", decimal.mark = ",")
+```
+
+
+# G11
+
+## Data Preprocessing
+
+```{r}
+G11 <- read_excel("data-input/BAB5_G8_G15.xlsx", sheet = "G11", col_names = F)
+head(G11)
+```
+
+```{r}
+dates <- as.numeric(G11[1,])
+dates <- as.Date(dates[-1], origin="1899-12-30")
+
+G11_clean <- G11[c(4,37),]
+# colnames(G11_clean)[-1] <- as.character(as.yearmon(dates))
+colnames(G11_clean)[-1] <- as.character(dates)
+G11_clean <- rename(G11_clean, Jenis = ...1)
+
+head(G11_clean)
+```
+
+```{r}
+G11_trans <- data.frame(t(G11_clean[-1]))
+colnames(G11_trans) <- c(G11_clean[1,1], G11_clean[2,1])
+G11_trans$Waktu <- ymd(rownames(G11_trans))
+rownames(G11_trans) <- NULL
+
+head(G11_trans)
+```
+
+```{r}
+ggplot(data = G11_trans, mapping = aes(x = Waktu)) +
+  geom_col(aes(y = `JUMLAH MERCHANT SULSEL`, fill = "JUMLAH MERCHANT SULSEL"),
+           width = 15.5) + 
+  geom_line(aes(y = `g.  QRIS Sulsel (rhs)`*100 *700000/250, col = "g.  QRIS Sulsel (rhs)"), 
+            na.rm = T, 
+            size = 3, 
+            ) +
+  geom_hline(yintercept = 0, color = "grey") +
+  geom_point(aes(y = `g.  QRIS Sulsel (rhs)`*100 *700000/250), 
+             na.rm = T, 
+             shape = 18,
+             size = 5,
+             col = "#ffff00"
+             ) +
+  
+  geom_text_repel(aes(y = `JUMLAH MERCHANT SULSEL`, label = `JUMLAH MERCHANT SULSEL`),
+                  data = G11_trans[seq(13,nrow(G11_trans),3),],
+                  size = 3.1, 
+                  box.padding = 0.1,
+                  nudge_y = 80000,
+                   ) +
+  geom_label_repel(aes(y = `g.  QRIS Sulsel (rhs)`*100 *700000/250, 
+                      label = scales::percent(`g.  QRIS Sulsel (rhs)`)
+                      ),
+                  data = G11_trans[seq(22,nrow(G11_trans),3),],
+                  na.rm = T,
+                  size = 3,
+                  label.size = NA,
+                  fill= "#f4b183",
+                  box.padding = 0.4,
+                  nudge_y = -85000,
+                  nudge_x = 75.99
+                   ) +
+  
+  scale_x_date(date_breaks = "2 months",
+               date_labels = "%b-%y", 
+               guide = guide_axis(angle = 60),
+               name = "Periode") +
+  scale_y_continuous(labels = scales::comma,
+                     limit=c(0,700000),
+                     breaks = seq(0, 700000, 100000),
+                     name = NULL,
+                     sec.axis = sec_axis(trans=~.*250/700000 / 100,
+                                         labels = scales::percent,
+                                         name="%yoy")
+                     ) +
+  
+  scale_fill_manual(values = c("JUMLAH MERCHANT SULSEL" = "#4474c4")) +
+  scale_color_manual(values = c("g.  QRIS Sulsel (rhs)" = "#ed7d31")) +
+  
+  theme_minimal() +
+  theme(text=element_text(family="Calibri"),
+        axis.title.y.right = element_text(angle = 90),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        )
+
+ggsave("data-output/g11.png")
+```
+
+
+# G12
+
+## Data Preprocessing
+
+```{r}
+G12 <- read_excel("data-input/BAB5_G8_G15.xlsx", sheet = "G12")
+G12
+```
+
+```{r}
+G12_clean <- G12[-1,]
+G12_clean <- G12_clean %>% 
+  rename_with(.cols = c(1,2),
+              .fn = ~ paste0(c("Merchant", "JumlahMerchant")))
+G12_clean <- G12_clean[c(1:2,6,3:5),]
+```
+
+## Visualisasi
+
+```{r}
+Pangsa_percent <- round(100 * G12_clean$Pangsa, 1)
+G12_labels <- paste0(G12_clean$Merchant, "; ", my_comma(Pangsa_percent), "%")
+
+# png(file="data-output/g12.png")
+
+pie(G12_clean$JumlahMerchant,
+    labels=G12_labels, 
+    border="white", 
+    col=brewer.pal(6, "Set2")
+    )
+
+# dev.off()
+```
+
